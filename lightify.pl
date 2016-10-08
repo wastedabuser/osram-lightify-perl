@@ -16,6 +16,7 @@ my $cmd = Eldhelm::Util::CommandLine->new(
 		[ 'g',      'group by name' ],
 		[ 'on',     'on' ],
 		[ 'off',    'off' ],
+		[ 'sc',     'apply scene' ],
 		[ 'lg',     'list groups' ],
 		[ 'ld',     'list devices' ],
 		[ 'debug',  'shows messages' ],
@@ -41,11 +42,13 @@ unless ($api->{token}) {
 }
 
 if ($args{on}) {
-	$api->callApiGet('/services/group/set?idx='.$api->findGroupId($args{g}).'&onoff=1')   if $args{g};
-	$api->callApiGet('/services/device/set?idx='.$api->findDeviceId($args{d}).'&onoff=1') if $args{d};
+	$api->toggleGroup($args{g}, 1) if $args{g};
+	$api->toggleDevice($args{d}, 1) if $args{d};
 } elsif ($args{off}) {
-	$api->callApiGet('/services/group/set?idx='.$api->findGroupId($args{g}).'&onoff=0')   if $args{g};
-	$api->callApiGet('/services/device/set?idx='.$api->findDeviceId($args{d}).'&onoff=0') if $args{d};
+	$api->toggleGroup($args{g}, 0) if $args{g};
+	$api->toggleDevice($args{d}, 0) if $args{d};
+} elsif ($args{sc}) {
+	$api->applySceneByName($args{sc});
 }
 
 if ($args{lg}) {

@@ -75,6 +75,9 @@ sub callApiGet {
 	}
 }
 
+# gruops
+# =======================================
+
 sub getGroups {
 	my ($self) = @_;
 	return @{ $self->{groups} } if $self->{groups};
@@ -91,6 +94,15 @@ sub findGroupId {
 	return $self->groupByName($args{g})->{groupId};
 }
 
+sub toggleGroup {
+	my ($self, $name, $state) = @_;
+	$state ||= 0;
+	$self->callApiGet('/services/group/set?idx='.$self->findGroupId($name).'&onoff='.$state);
+}
+
+# devices
+# =======================================
+
 sub getDevices {
 	my ($self) = @_;
 	return @{ $self->{devices} } if $self->{devices};
@@ -105,6 +117,38 @@ sub deviceByName {
 sub findDeviceId {
 	my ($self, $name) = @_;
 	return $self->deviceByName($args{d})->{deviceId};
+}
+
+sub toggleDevice {
+	my ($self, $name, $state) = @_;
+	$self->callApiGet('/services/device/set?idx='.$self->findDeviceId($name).'&onoff='.$state);
+}
+
+sub isOn {
+	my ($self, $name) = @_;
+	my $dev = $self->deviceByName($name);
+	return unless $dev;
+	return $dev->{on} == 1;
+}
+
+# scenes
+# =======================================
+
+sub findSceneId {
+	my ($self, $name) = @_;
+	foreach my $g ($self->getGroups) {
+		next unless $g;
+
+		my $s = $g->{scenes};
+		foreach (keys %$s) {
+			return $_ if $s->{$_} =~ /$name/i;
+		}
+	}
+}
+
+sub applySceneByName {
+	my ($self, $name) = @_;
+	return $self->callApiGet('/services/scene/recall?sceneId='.$self->findSceneId($name));
 }
 
 1;
