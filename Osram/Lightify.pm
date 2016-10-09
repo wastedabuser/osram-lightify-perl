@@ -95,10 +95,35 @@ sub groupId {
 	return $self->group($name)->{groupId};
 }
 
-sub toggleGroup {
-	my ($self, $name, $state) = @_;
-	$state ||= 0;
-	$self->callApiGet('/services/group/set?idx='.$self->groupId($name).'&onoff='.$state);
+sub groupToggle {
+	my ($self, $name, $state, $level, $time) = @_;
+	my %params = (
+		idx   => $self->groupId($name),
+		onoff => $state || 0,
+		time  => $time || 0,
+	);
+	$params{level} = $level if $level;
+	$self->callApiGet('/services/group/set?'.$self->compileParams(%params));
+}
+
+sub groupLevel {
+	my ($self, $name, $level, $time) = @_;
+	my %params = (
+		idx   => $self->groupId($name),
+		level => $level || 0,
+		time  => $time || 0,
+	);
+	$self->callApiGet('/services/group/set?'.$self->compileParams(%params));
+}
+
+sub groupTemp {
+	my ($self, $name, $temp, $time) = @_;
+	my %params = (
+		idx   => $self->groupId($name),
+		ctemp => $temp || 0,
+		time  => $time || 0,
+	);
+	$self->callApiGet('/services/group/set?'.$self->compileParams(%params));
 }
 
 # devices
@@ -120,9 +145,15 @@ sub deviceId {
 	return $self->device($name)->{deviceId};
 }
 
-sub toggleDevice {
-	my ($self, $name, $state) = @_;
-	$self->callApiGet('/services/device/set?idx='.$self->deviceId($name).'&onoff='.$state);
+sub deviceToggle {
+	my ($self, $name, $state, $level, $time) = @_;
+	my %params = (
+		idx   => $self->deviceId($name),
+		onoff => $state || 0,
+		time  => $time || 0,
+	);
+	$params{level} = $level if $level;
+	$self->callApiGet('/services/device/set?'.$self->compileParams(%params));
 }
 
 sub isOn {
@@ -162,6 +193,11 @@ sub applyScene {
 # utils
 # ======================================
 
+sub compileParams {
+	my ($self, %params) = @_;
+	return join '&', map { "$_=$params{$_}" } keys %params;
+}
+
 sub runCommand {
 	my ($self, $script) = @_;
 
@@ -169,10 +205,12 @@ sub runCommand {
 	$self->output($script);
 	$script =~ s/eval|`//g;
 	$script =~ s/(\w+)\s*\((.*?)\)/$self->parseMethod($1,$2)/ge;
-	$self->output($script);	
+	$self->output($script);
 	return unless $script;
-	
-	return eval($script);
+
+	my $result = eval($script);
+	$self->output($@) if $@;
+	return $result;
 }
 
 sub parseMethod {
@@ -188,14 +226,14 @@ sub parseAttributes {
 
 sub timeBetween {
 	my ($self, $from, $to) = @_;
-	
+
 	my ($fh, $fm, $fs) = $from =~ /^(\d+):(\d*):?(\d*)/;
 	my $fromSec = $fh * 3600 + $fm * 60 + $fs;
-	
+
 	my ($th, $tm, $ts) = $to =~ /^(\d+):(\d*):?(\d*)/;
 	my $toSec = $th * 3600 + $tm * 60 + $ts;
-	
-	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+
+	my ($sec, $min, $hour, $mday, $mon, $year, $wday, $yday, $isdst) = localtime(time);
 	my $curSec = $hour * 3600 + $min * 60 + $sec;
 	my $res;
 	if ($fromSec > $toSec) {
@@ -203,12 +241,19 @@ sub timeBetween {
 	} else {
 		$res = $fromSec <= $curSec && $toSec >= $curSec;
 	}
-	
+
 	$self->output('========= Time Between =========');
 	$self->output("from:$fromSec, to:$toSec, now:$curSec");
 	$self->output("result: $res");
-	
+
 	return $res;
+}
+
+sub wait {
+	my ($self, $sec) = @_;
+	$self->output("========= Wait: $sec =========");
+	sleep $sec;
+	$self->output('done');
 }
 
 1;

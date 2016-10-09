@@ -43,11 +43,11 @@ unless ($api->{token}) {
 }
 
 if ($args{on}) {
-	$api->toggleGroup($args{g}, 1) if $args{g};
-	$api->toggleDevice($args{d}, 1) if $args{d};
+	$api->groupToggle($args{g}, 1) if $args{g};
+	$api->deviceToggle($args{d}, 1) if $args{d};
 } elsif ($args{off}) {
-	$api->toggleGroup($args{g}, 0) if $args{g};
-	$api->toggleDevice($args{d}, 0) if $args{d};
+	$api->groupToggle($args{g}, 0) if $args{g};
+	$api->deviceToggle($args{d}, 0) if $args{d};
 } elsif ($args{sc}) {
 	$api->applyScene($args{sc});
 }
