@@ -15,6 +15,7 @@ sub new {
 sub output {
 	my ($self, $str) = @_;
 	return unless $self->{debug};
+	return $self->{outputSub}->($str) if $self->{outputSub};
 	print "$str\n";
 }
 
@@ -78,65 +79,72 @@ sub callApiGet {
 # gruops
 # =======================================
 
-sub getGroups {
+sub allGroups {
 	my ($self) = @_;
 	return @{ $self->{groups} } if $self->{groups};
 	return @{ $self->{groups} = $self->callApiGet('/services/groups') };
 }
 
-sub groupByName {
+sub group {
 	my ($self, $name) = @_;
-	return (grep { $_->{name} =~ /$name/i } $self->getGroups)[0];
+	return (grep { $_->{name} =~ /$name/i } $self->allGroups)[0];
 }
 
-sub findGroupId {
+sub groupId {
 	my ($self, $name) = @_;
-	return $self->groupByName($name)->{groupId};
+	return $self->group($name)->{groupId};
 }
 
 sub toggleGroup {
 	my ($self, $name, $state) = @_;
 	$state ||= 0;
-	$self->callApiGet('/services/group/set?idx='.$self->findGroupId($name).'&onoff='.$state);
+	$self->callApiGet('/services/group/set?idx='.$self->groupId($name).'&onoff='.$state);
 }
 
 # devices
 # =======================================
 
-sub getDevices {
+sub allDevices {
 	my ($self) = @_;
 	return @{ $self->{devices} } if $self->{devices};
 	return @{ $self->{devices} = $self->callApiGet('/services/devices') };
 }
 
-sub deviceByName {
+sub device {
 	my ($self, $name) = @_;
-	return (grep { $_->{name} =~ /$name/i } $self->getDevices)[0];
+	return (grep { $_->{name} =~ /$name/i } $self->allDevices)[0];
 }
 
-sub findDeviceId {
+sub deviceId {
 	my ($self, $name) = @_;
-	return $self->deviceByName($name)->{deviceId};
+	return $self->device($name)->{deviceId};
 }
 
 sub toggleDevice {
 	my ($self, $name, $state) = @_;
-	$self->callApiGet('/services/device/set?idx='.$self->findDeviceId($name).'&onoff='.$state);
+	$self->callApiGet('/services/device/set?idx='.$self->deviceId($name).'&onoff='.$state);
 }
 
 sub isOn {
 	my ($self, $name) = @_;
-	my $dev = $self->deviceByName($name);
+	my $dev = $self->device($name);
 	return unless $dev;
+	$self->output("========= Device: $name =========");
+	$self->output("on: $dev->{on}");
 	return $dev->{on} == 1;
+}
+
+sub isOff {
+	my ($self, $name) = @_;
+	return !$self->isOn($name);
 }
 
 # scenes
 # =======================================
 
-sub findSceneId {
+sub sceneId {
 	my ($self, $name) = @_;
-	foreach my $g ($self->getGroups) {
+	foreach my $g ($self->allGroups) {
 		next unless $g;
 
 		my $s = $g->{scenes};
@@ -146,9 +154,61 @@ sub findSceneId {
 	}
 }
 
-sub applySceneByName {
+sub applyScene {
 	my ($self, $name) = @_;
-	return $self->callApiGet('/services/scene/recall?sceneId='.$self->findSceneId($name));
+	return $self->callApiGet('/services/scene/recall?sceneId='.$self->sceneId($name));
+}
+
+# utils
+# ======================================
+
+sub runCommand {
+	my ($self, $script) = @_;
+
+	$self->output('========= Command =========');
+	$self->output($script);
+	$script =~ s/eval|`//g;
+	$script =~ s/(\w+)\s*\((.*?)\)/$self->parseMethod($1,$2)/ge;
+	$self->output($script);	
+	return unless $script;
+	
+	return eval($script);
+}
+
+sub parseMethod {
+	my ($self, $name, $attrs) = @_;
+	return "$name($attrs)" if $name eq 'if';
+	return "\$self->$name(".$self->parseAttributes($attrs).")";
+}
+
+sub parseAttributes {
+	my ($self, $str) = @_;
+	return join ',', map { "'$_'" } split /,/, $str;
+}
+
+sub timeBetween {
+	my ($self, $from, $to) = @_;
+	
+	my ($fh, $fm, $fs) = $from =~ /^(\d+):(\d*):?(\d*)/;
+	my $fromSec = $fh * 3600 + $fm * 60 + $fs;
+	
+	my ($th, $tm, $ts) = $to =~ /^(\d+):(\d*):?(\d*)/;
+	my $toSec = $th * 3600 + $tm * 60 + $ts;
+	
+	my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) = localtime(time);
+	my $curSec = $hour * 3600 + $min * 60 + $sec;
+	my $res;
+	if ($fromSec > $toSec) {
+		$res = $fromSec <= $curSec || $toSec >= $curSec;
+	} else {
+		$res = $fromSec <= $curSec && $toSec >= $curSec;
+	}
+	
+	$self->output('========= Time Between =========');
+	$self->output("from:$fromSec, to:$toSec, now:$curSec");
+	$self->output("result: $res");
+	
+	return $res;
 }
 
 1;

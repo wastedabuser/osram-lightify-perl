@@ -19,6 +19,7 @@ my $cmd = Eldhelm::Util::CommandLine->new(
 		[ 'sc',     'apply scene' ],
 		[ 'lg',     'list groups' ],
 		[ 'ld',     'list devices' ],
+		[ 'c',      'run command' ],
 		[ 'debug',  'shows messages' ],
 		[ 's',      'security token' ]
 	]
@@ -48,13 +49,17 @@ if ($args{on}) {
 	$api->toggleGroup($args{g}, 0) if $args{g};
 	$api->toggleDevice($args{d}, 0) if $args{d};
 } elsif ($args{sc}) {
-	$api->applySceneByName($args{sc});
+	$api->applyScene($args{sc});
 }
 
 if ($args{lg}) {
-	warn Dumper $api->getGroups;
+	warn Dumper $api->allGroups;
 }
 
 if ($args{ld}) {
-	warn Dumper $api->getDevices;
+	warn Dumper $api->allDevices;
+}
+
+if ($args{c}) {
+	$api->runCommand($args{c});
 }
