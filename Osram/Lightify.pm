@@ -91,7 +91,7 @@ sub groupByName {
 
 sub findGroupId {
 	my ($self, $name) = @_;
-	return $self->groupByName($args{g})->{groupId};
+	return $self->groupByName($name)->{groupId};
 }
 
 sub toggleGroup {
@@ -116,7 +116,7 @@ sub deviceByName {
 
 sub findDeviceId {
 	my ($self, $name) = @_;
-	return $self->deviceByName($args{d})->{deviceId};
+	return $self->deviceByName($name)->{deviceId};
 }
 
 sub toggleDevice {
