@@ -19,6 +19,12 @@ sub output {
 	print "$str\n";
 }
 
+sub error {
+	my ($self, $str) = @_;
+	return $self->{errorSub}->($str) if $self->{errorSub};
+	die "**********************************\n$str\n**********************************\n";
+}
+
 sub authenticate {
 	my ($self) = @_;
 	my $result = $self->callApiPost(
@@ -51,7 +57,7 @@ sub callApiPost {
 		$self->output($response->content);
 		return decode_json($response->content);
 	} else {
-		die $response->status_line.": $url";
+		$self->error($response->status_line.": $url");
 	}
 }
 
@@ -72,7 +78,7 @@ sub callApiGet {
 		$self->output($response->content);
 		return decode_json($response->content);
 	} else {
-		die $response->status_line.": $url";
+		$self->error($response->status_line.": $url");
 	}
 }
 
@@ -87,7 +93,9 @@ sub allGroups {
 
 sub group {
 	my ($self, $name) = @_;
-	return (grep { $_->{name} =~ /$name/i } $self->allGroups)[0];
+	my $grp = (grep { $_->{name} =~ /$name/i } $self->allGroups)[0];
+	$self->error("Can not find group: $name") unless $grp;
+	return $grp;
 }
 
 sub groupId {
@@ -137,7 +145,9 @@ sub allDevices {
 
 sub device {
 	my ($self, $name) = @_;
-	return (grep { $_->{name} =~ /$name/i } $self->allDevices)[0];
+	my $dev = (grep { $_->{name} =~ /$name/i } $self->allDevices)[0];
+	$self->error("Can not find device: $name") unless $dev;
+	return $dev;
 }
 
 sub deviceId {
@@ -159,7 +169,6 @@ sub deviceToggle {
 sub isOn {
 	my ($self, $name) = @_;
 	my $dev = $self->device($name);
-	return unless $dev;
 	$self->output("========= Device: $name =========");
 	$self->output("on: $dev->{on}");
 	return $dev->{on} == 1;
@@ -205,6 +214,7 @@ sub runCommand {
 	$self->output($script);
 	$script =~ s/eval|`//g;
 	$script =~ s/(\w+)\s*\((.*?)\)/$self->parseMethod($1,$2)/ge;
+	$script =~ s/(\w+)\s*([^\(\);]*?)\s*(?:(;)|[\n\r]|$)/$self->parseText($1,$2)/ge;
 	$self->output($script);
 	return unless $script;
 
@@ -213,15 +223,33 @@ sub runCommand {
 	return $result;
 }
 
+sub call {
+	my ($self, $name, @args) = @_;
+	return $self->{extend}{$name}->(@args) if $self->{extend} && $self->{extend}{$name};
+	return $self->$name(@args);
+}
+
+sub parseText {
+	my ($self, $name, $attrs) = @_;
+	return $self->parseMethod($name, $attrs).';';
+}
+
 sub parseMethod {
 	my ($self, $name, $attrs) = @_;
 	return "$name($attrs)" if $name eq 'if';
-	return "\$self->$name(".$self->parseAttributes($attrs).")";
+	return "\$self->call('$name',".$self->parseAttributes($attrs).")";
 }
 
 sub parseAttributes {
 	my ($self, $str) = @_;
-	return join ',', map { "'$_'" } split /,/, $str;
+	return join ',', map { $self->parseAttribute($_) } split /,/, $str;
+}
+
+sub parseAttribute {
+	my ($self, $str) = @_;
+	$str =~ s/^[\s\t]+//;
+	$str =~ s/[\s\t]+$//;
+	return "'$str'";
 }
 
 sub timeBetween {
