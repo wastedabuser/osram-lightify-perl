@@ -27,7 +27,7 @@ sub error {
 
 sub authenticate {
 	my ($self) = @_;
-	my $result = $self->callApiPost(
+	my $result = $self->postRequest(
 		'/services/session',
 		{   username     => $self->{username},
 			password     => $self->{password},
@@ -38,14 +38,14 @@ sub authenticate {
 	return $result;
 }
 
-sub callApiPost {
+sub postRequest {
 	my ($self, $url, $data) = @_;
 	my $host    = "$self->{host}$url";
 	my $content = encode_json($data);
 	$self->output('========= API post =========');
 	$self->output($host);
 	$self->output($content);
-
+	
 	my $req = HTTP::Request->new('POST', $host);
 	$req->content_type('application/json');
 	$req->header(authorization => $self->{token}) if $self->{token};
@@ -61,7 +61,7 @@ sub callApiPost {
 	}
 }
 
-sub callApiGet {
+sub getRequest {
 	my ($self, $url, $data) = @_;
 	my $host = "$self->{host}$url";
 	$self->output('========= API get =========');
@@ -80,6 +80,24 @@ sub callApiGet {
 	} else {
 		$self->error($response->status_line.": $url");
 	}
+}
+
+sub checkAuthentication {
+	my ($self) = @_;
+	return if $self->{token};
+	return $self->authenticate();
+}
+
+sub callApiPost {
+	my ($self, $url, $data) = @_;
+	$self->checkAuthentication();
+	return $self->postRequest($url, $data);
+}
+
+sub callApiGet {
+	my ($self, $url, $data) = @_;
+	$self->checkAuthentication();
+	return $self->getRequest($url, $data);
 }
 
 # gruops
