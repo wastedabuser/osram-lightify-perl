@@ -1,0 +1,6 @@
+{
+	"host": "https://eu.lightify-api.org/lightify",
+	"username": "your_ostam_user_name",
+	"password": "your_sram_pass",
+	"serialNumber": "your_gateway_serial_number"
+}
