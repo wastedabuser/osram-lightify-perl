@@ -231,8 +231,10 @@ sub runCommand {
 	$self->output('========= Command =========');
 	$self->output($script);
 	$script =~ s/eval|`//g;
+	$script =~ s/(^|[\s\t])(if)([\s\t\(])/\1<KEYWORD:\2>\3/g;
 	$script =~ s/(\w+)\s*\((.*?)\)/$self->parseMethod($1,$2)/ge;
 	$script =~ s/(\w+)\s*([^\(\);]*?)\s*(?:(;)|[\n\r]|$)/$self->parseText($1,$2)/ge;
+	$script =~ s/<KEYWORD:(\w+)>/\1/g;
 	$self->output($script);
 	return unless $script;
 
